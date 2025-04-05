@@ -12,6 +12,7 @@ import { IGetAppParametersResponse } from '@dify-chat/api'
 import { useIsMobile } from '@dify-chat/helpers'
 import { Button, GetProp, Space } from 'antd'
 import { useMemo } from 'react'
+import logoImage from '../../../../src/assets/images/logo.png'
 
 const renderTitle = (icon: React.ReactElement, title: string) => (
 	<Space align="start">
@@ -111,7 +112,7 @@ export const WelcomePlaceholder = (props: IWelcomePlaceholderProps) => {
 			>
 				<Welcome
 					variant="borderless"
-					icon="https://mdn.alipayobjects.com/huamei_iwk9zp/afts/img/A*s5sNRo5LjfQAAAAAAAAAAAAADgCCAQ/fmt.webp"
+					icon={logoImage}
 					title={appParameters?.opening_statement || "Hello, I'm Dify Chat"}
 					description="Base on Dify API, Dify Chat is a web app that can interact with AI."
 					extra={

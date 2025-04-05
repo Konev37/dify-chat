@@ -72,6 +72,8 @@ export interface ChatboxProps {
 	 * 上传文件 API
 	 */
 	uploadFileApi: DifyApi['uploadFile']
+
+	renderMessage: any
 }
 
 /**

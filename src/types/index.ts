@@ -49,4 +49,8 @@ export interface IAgentMessage {
 	 * 知识库引用列表
 	 */
 	retrieverResources?: IRetrieverResource[]
+
+	thinking?: string
+
+  hasThinking?: boolean
 }

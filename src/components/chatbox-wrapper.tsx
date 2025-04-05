@@ -1,4 +1,4 @@
-import { UnorderedListOutlined } from '@ant-design/icons'
+import { UnorderedListOutlined, UpOutlined, DownOutlined } from '@ant-design/icons'
 import { Prompts } from '@ant-design/x'
 import {
 	DifyApi,
@@ -21,6 +21,47 @@ import { useX } from '@/hooks/useX'
 
 import { ChatPlaceholder } from './chat-placeholder'
 import { MobileHeader } from './mobile/header'
+
+// 解析思考内容的辅助函数
+const parseThinkingContent = (content: string) => {
+	const thinkRegex = /<think>([\s\S]*?)<\/think>/g
+	const matches = Array.from(content.matchAll(thinkRegex))
+
+	// 提取所有思考内容
+	const thinkingParts = matches.map(match => match[1].trim())
+
+	// 移除所有思考标签，得到清理后的内容
+	const cleanContent = content.replace(thinkRegex, '')
+
+	return {
+		hasThinking: thinkingParts.length > 0,
+		thinking: thinkingParts.join('\n\n'),
+		content: cleanContent,
+	}
+}
+
+// 思考内容的可折叠组件
+const ThinkingContainer = ({ content }: { content: string }) => {
+	const [isOpen, setIsOpen] = useState(false)
+
+	return (
+		<div className="mb-3 border-b border-gray-200 pb-2">
+			<div
+				className="flex items-center cursor-pointer text-gray-500 hover:text-gray-700"
+				onClick={() => setIsOpen(!isOpen)}
+			>
+				<span className="text-xs font-medium mr-1">思考过程</span>
+				{isOpen ? <UpOutlined className="w-3 h-3" /> : <DownOutlined className="w-3 h-3" />}
+			</div>
+
+			{isOpen && (
+				<div className="mb-2 text-xs text-gray-600 bg-gray-50 p-2 rounded">
+					{content}
+				</div>
+			)}
+		</div>
+	)
+}
 
 interface IChatboxWrapperProps {
 	/**
@@ -143,6 +184,19 @@ export default function ChatboxWrapper(props: IChatboxWrapperProps) {
 
 		result.data.forEach(item => {
 			const createdAt = dayjs(item.created_at * 1000).format('YYYY-MM-DD HH:mm:ss')
+
+			// 解析AI回答中的思考内容
+			let answerContent = item.answer
+			let thinking = ''
+			let hasThinking = false
+
+			if (item.answer) {
+				const parsedContent = parseThinkingContent(item.answer)
+				answerContent = parsedContent.content
+				thinking = parsedContent.thinking
+				hasThinking = parsedContent.hasThinking
+			}
+
 			newMessages.push(
 				{
 					id: item.id,
@@ -155,7 +209,9 @@ export default function ChatboxWrapper(props: IChatboxWrapperProps) {
 				},
 				{
 					id: item.id,
-					content: item.answer,
+					content: answerContent,
+					thinking: hasThinking ? thinking : undefined, // 保存思考内容
+					hasThinking: hasThinking,
 					status: item.status === 'error' ? item.status : 'success',
 					error: item.error || '',
 					isHistory: true,
@@ -183,6 +239,34 @@ export default function ChatboxWrapper(props: IChatboxWrapperProps) {
 		onConversationIdChange,
 		difyApi,
 	})
+
+	// 处理实时消息中的思考内容
+	const processedMessages = useMemo(() => {
+		return messages.map(item => {
+			if (item.status === 'local') {
+				return item; // 用户消息不处理
+			}
+
+			const content = item.message.content
+			if (!content) return item;
+
+			const parsedContent = parseThinkingContent(content)
+
+			if (parsedContent.hasThinking) {
+				return {
+					...item,
+					message: {
+						...item.message,
+						content: parsedContent.content,
+						thinking: parsedContent.thinking,
+						hasThinking: true
+					}
+				}
+			}
+
+			return item;
+		});
+	}, [messages]);
 
 	const initConversationInfo = async () => {
 		// 有对话 ID 且非临时 ID 时，获取历史消息
@@ -246,7 +330,7 @@ export default function ChatboxWrapper(props: IChatboxWrapperProps) {
 	}
 
 	const unStoredMessages4Render = useMemo(() => {
-		return messages.map(item => {
+		return processedMessages.map(item => {
 			return {
 				id: item.id,
 				status: item.status,
@@ -257,10 +341,12 @@ export default function ChatboxWrapper(props: IChatboxWrapperProps) {
 				retrieverResources: item.message.retrieverResources,
 				files: item.message.files,
 				content: item.message.content,
+				thinking: item.message.thinking, // 思考内容
+				hasThinking: item.message.hasThinking, // 是否有思考内容
 				role: item.status === 'local' ? 'user' : 'ai',
 			} as IMessageItem4Render
 		})
-	}, [messages])
+	}, [processedMessages])
 
 	const chatReady = useMemo(() => {
 		if (!appParameters?.user_input_form?.length) {
@@ -309,6 +395,22 @@ export default function ChatboxWrapper(props: IChatboxWrapperProps) {
 		</Popover>
 	)
 
+	// 自定义消息渲染函数，支持展示思考过程
+	const renderMessage = (message: IMessageItem4Render) => {
+		if (message.role === 'user' || !message.hasThinking) {
+			return null; // 返回null表示使用默认渲染
+		}
+
+		return (
+			<div>
+				{message.hasThinking && message.thinking && (
+					<ThinkingContainer content={message.thinking} />
+				)}
+				<div>{message.content}</div>
+			</div>
+		);
+	};
+
 	return (
 		<div className="flex h-screen flex-col overflow-hidden flex-1">
 			{isMobile ? <MobileHeader centerChildren={conversationTitle} /> : null}
@@ -330,6 +432,7 @@ export default function ChatboxWrapper(props: IChatboxWrapperProps) {
 						isRequesting={agent.isRequesting()}
 						onPromptsItemClick={onPromptsItemClick}
 						onSubmit={onSubmit}
+						renderMessage={renderMessage as any}
 						onCancel={async () => {
 							abortRef.current()
 							if (currentTaskId) {
@@ -362,3 +465,4 @@ export default function ChatboxWrapper(props: IChatboxWrapperProps) {
 		</div>
 	)
 }
+

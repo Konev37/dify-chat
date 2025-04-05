@@ -28,7 +28,7 @@ export const MobileHeader = (props: IMobileHeaderProps) => {
 				{centerChildren}
 			</div>
 
-			<GithubIcon />
+			{/*<GithubIcon />*/}
 		</div>
 	)
 }

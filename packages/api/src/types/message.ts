@@ -145,4 +145,8 @@ export interface IMessageItem4Render extends IAgentMessage {
 	 * 消息创建时间（YYYY-MM-DD HH:mm:ss）
 	 */
 	created_at: string
+
+	thinking?: string
+
+  hasThinking?: boolean
 }
